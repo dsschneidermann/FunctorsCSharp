@@ -1,0 +1,29 @@
+using System;
+
+namespace functors
+{
+    public class LazyF<TInner> : Lazy<TInner>, IFunctor<Lazy<TInner>>
+    {
+        public LazyF(Func<TInner> valueFactory) : base(valueFactory)
+        {
+        }
+
+        Lazy<TInner> IFunctor<Lazy<TInner>>.Box => this;
+
+        public TInner Unbox<TInner>() => this.Value;
+
+        IFunctor<T2> IFunctor<Lazy<TInner>>.FmapImpl<T2, T3>(Func<Lazy<TInner>, T3> f)
+            => new LazyF<T3>(() => f(this)) as IFunctor<T2>;
+    }
+
+    public static class LazyFunctorExtentions
+    {
+        public static LazyF<TRes> Fmap<TInner, TRes>(this LazyF<TInner> functor, Func<TInner, TRes> f)
+            => new LazyF<TRes>(() => f(functor.Unbox()));
+    }
+
+    public static class LazyF
+    {
+        public static LazyF<T> Create<T>(Func<T> initial) => new LazyF<T>(initial);
+    }
+}

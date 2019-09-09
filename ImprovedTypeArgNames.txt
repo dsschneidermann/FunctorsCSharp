@@ -1,0 +1,23 @@
+using System;
+using Utf8Json;
+
+namespace functors
+{
+    public interface IFunctor<TFunctor> where TFunctor : class
+    {
+        TFunctor Box { get; }
+        IFunctor<TResFunctor> FmapImpl<TResFunctor, TResInner>(Func<TFunctor, TResInner> f) where TResFunctor : class;
+    }
+
+    public class LazyF<TInner> : Lazy<TInner>, IFunctor<Lazy<TInner>>
+    {
+        public LazyF(Func<TInner> valueFactory) : base(valueFactory) {}
+
+        Lazy<TInner> IFunctor<Lazy<TInner>>.Box => this;
+
+        IFunctor<TResFunctor> IFunctor<Lazy<TInner>>.FmapImpl<TResFunctor, TResInner>(Func<Lazy<TInner>, TResInner> f)
+        {
+            return new LazyF<TResInner>(() => f(this)) as IFunctor<TResFunctor>;
+        }
+    }
+}

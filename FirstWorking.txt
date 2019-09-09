@@ -1,0 +1,64 @@
+using System;
+using Utf8Json;
+
+namespace functors
+{
+    public interface IFunctor<T1> where T1 : class
+    {
+        T1 Box { get; }
+        IFunctor<T2> FmapImpl<T2, T3>(Func<T1, T3> f) where T2 : class;
+    }
+
+    public class LazyF<TInner> : Lazy<TInner>, IFunctor<Lazy<TInner>>
+    {
+        public LazyF(Func<TInner> valueFactory) : base(valueFactory)
+        {
+        }
+
+        Lazy<TInner> IFunctor<Lazy<TInner>>.Box => this;
+
+        IFunctor<T2> IFunctor<Lazy<TInner>>.FmapImpl<T2, T3>(Func<Lazy<TInner>, T3> f)
+        {
+            return new LazyF<T3>(() => f(this)) as IFunctor<T2>;
+        }
+    }
+
+    public static class Functors
+    {
+        public static void Run()
+        {
+            // Create a functor Lazy<int> containing a 5.
+            var a = new LazyF<int>(() => 5);
+
+            // Example for direct use of IFunctor interface.
+            var res1 = ((IFunctor<Lazy<int>>)a).FmapImpl<Lazy<string>, string>(x => (x.Value + 2).ToString());
+
+            // Instead of x.Value as above, we can call Unbox on the input to the function.
+            var res2 = a.Fmap<int, string>(x => (x + 2).ToString());
+
+            // Type argument are inferred
+            var res3 = a.Fmap(x => (x + 2).ToString());
+
+            // There is also support for chaining!
+            var res4 = a.Fmap(x => x + 2).Fmap(x => x.ToString());
+
+            var res = new
+            {
+                res1 = res1.Unbox(),
+                res2 = res2.Unbox(),
+                res3 = res3.Unbox(),
+                res4 = res4.Unbox()
+            };
+
+            Console.WriteLine(JsonSerializer.PrettyPrint(JsonSerializer.Serialize(res)));
+        }
+    }
+
+    public static class Extentions
+    {
+        public static T Unbox<T>(this IFunctor<Lazy<T>> functor) => functor.Box.Value;
+
+        public static LazyF<TRes> Fmap<TInner, TRes>(this LazyF<TInner> functor, Func<TInner, TRes> f)
+            => new LazyF<TRes>(() => f(functor.Unbox()));
+    }
+}
