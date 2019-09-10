@@ -17,7 +17,7 @@ namespace functors
             var res1_exec = res1_functor.FmapImpl<LazyF<string>, string>(
                 x => (x.Value + 2).ToString());
             string res1 = null;
-            await res1_exec.UnboxImpl(x => { res1 = x; return Task.CompletedTask; });
+            ((LazyF<string>)res1_exec).Unbox();
 
             // Instead of x.Value as above, we can call Unbox on the input to the function.
             var res2 = a.Fmap<int, string>(x => (x + 3).ToString());
@@ -55,14 +55,14 @@ namespace functors
             // Not impressive huh.. Looks a lot like we could just use a few "await" instead of all those Fmaps.
             // Lets try a sequence.
             var c = new[] { 1, 2, 3};
-            var res7 = SeqF.Create(c)
+            var res7 = ListA.Create(c)
                 .Fmap(x => x + 1)
                 .Fmap(x => x.ToString());
             // As expected, it looks like Linq.
 
             // We can use it to do multiple things, but again, not very interesting
             var requestUris = new[] { "https://www.dennis-s.dk", "https://www.dennis-s.dk/404" };
-            var res8 = SeqF.Create(requestUris).Fmap(
+            var res8 = ListA.Create(requestUris).Fmap(
                 url => LazyTaskF.Create<System.IO.Stream>(
                 () => new System.Net.Http.HttpClient().GetStreamAsync(url))
                 .Fmap(x => WriteToFileAsync("index.html", x))
@@ -73,7 +73,7 @@ namespace functors
 
             // Lets try a combinator of the two
             var res9 = (await 
-                SeqF.Create(requestUris).Compose()
+                ListA.Create(requestUris).Compose()
                     .With<LazyTaskF<string>, Task<string>>(Composable.ToTask<string>)
                 )
                 .Fmap(x => new System.Net.Http.HttpClient().GetStreamAsync(x))

@@ -1,5 +1,6 @@
 
 using System;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
 namespace functors
@@ -12,7 +13,7 @@ namespace functors
     //     }
 
     //     Task<TInner> IFunctor<Task<TInner>, TInner>.Box => this;
-        
+
     //     public TInner Unbox() => this.GetAwaiter().GetResult(); // Whoops, forced sync
 
     //     IFunctor<T2, T3> IFunctor<Task<TInner>, TInner>.FmapImpl<T2, T3>(Func<Task<TInner>, T3> f)
@@ -55,8 +56,6 @@ namespace functors
         IFunctor<LazyTaskF<TInner>, Task<TInner>> IFunctor<LazyTaskF<TInner>, Task<TInner>>.WrapImpl(Task<TInner> value)
             => new LazyTaskF<TInner>(() => value);
 
-        Task IFunctor<LazyTaskF<TInner>, Task<TInner>>.UnboxImpl(Func<Task<TInner>, Task> handler) => Unbox();
-
         IFunctor<T2, T3> IFunctor<LazyTaskF<TInner>, Task<TInner>>.FmapImpl<T2, T3>(Func<LazyTaskF<TInner>, T3> f)
             => new LazyTaskF<T3>(() => new Task<T3>(() => f(this))) as IFunctor<T2, T3>;
     }
@@ -65,27 +64,36 @@ namespace functors
     {
         // This handles when we have a LazyTaskF<T> (first step).
         public static LazyTaskF<TRes> Fmap<TInner, TRes>(this LazyTaskF<TInner> functor, Func<TInner, TRes> f)
-            => new LazyTaskF<TRes>(async () => f(await functor.Unbox()));
+            => new LazyTaskF<TRes>(async () => f(await functor.NullCheck("functor").Unbox().NullCheck("unboxed")));
 
         // This handles when we chain and have a LazyTask<Task<T>>.
         public static LazyTaskF<TRes> Fmap<TInner, TRes>(this LazyTaskF<Task<TInner>> functor, Func<TInner, TRes> f)
-            => new LazyTaskF<TRes>(async () => f(await (await functor.Unbox())));
+            => new LazyTaskF<TRes>(async () => f(await (await functor.NullCheck("functor").Unbox().NullCheck("unboxed"))));
 
         // And while we're at it, lets also allow void returning methods.
         public static LazyTaskF<Unit> Fmap<TInner>(this LazyTaskF<TInner> functor, Action<TInner> f)
-            => new LazyTaskF<Unit>(async () => { f(await functor.Unbox()); return Unit.Instance; });
-            
+            => new LazyTaskF<Unit>(async () => { f(await functor.NullCheck("functor").Unbox().NullCheck("unboxed")); return Unit.Instance; });
+
         // And void when chaining.
         public static LazyTaskF<Unit> Fmap<TInner>(this LazyTaskF<Task<TInner>> functor, Action<TInner> f)
-            => new LazyTaskF<Unit>(async () => { f(await (await functor.Unbox())); return Unit.Instance; });
-        
+            => new LazyTaskF<Unit>(async () => { f(await (await functor.NullCheck("functor").Unbox().NullCheck("unboxed"))); return Unit.Instance; });
+
         // For final simplicity of use, lets catch Task returns and make the non-result to Unit also.
         public static LazyTaskF<Unit> Fmap<TInner>(this LazyTaskF<TInner> functor, Func<TInner, Task> f)
-            => new LazyTaskF<Unit>(async () => { await f(await functor.Unbox()); return Unit.Instance; });
-            
+            => new LazyTaskF<Unit>(async () => { await f(await functor.NullCheck("functor").Unbox().NullCheck("unboxed")); return Unit.Instance; });
+
         // And Task support when chaining (yep, triple).
         public static LazyTaskF<Unit> Fmap<TInner>(this LazyTaskF<Task<TInner>> functor, Func<TInner, Task> f)
-            => new LazyTaskF<Unit>(async () => { await f(await (await functor.Unbox())); return Unit.Instance; });
+            => new LazyTaskF<Unit>(async () => { await f(await (await functor.NullCheck("functor").Unbox().NullCheck("unboxed"))); return Unit.Instance; });
+
+        public static T NullCheck<T>(this T isNull, string name, [CallerMemberName] string member = null, [CallerFilePath] string file = null, [CallerLineNumber] int? line = null)
+        {
+            if (isNull == null)
+            {
+                Console.WriteLine($"NullCheck failed in {member}: '{name}' is null in {file}:line {line}");
+            }
+            return isNull;
+        }
     }
 
     public class Unit

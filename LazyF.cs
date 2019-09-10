@@ -18,8 +18,6 @@ namespace functors
         IFunctor<LazyF<TInner>, TInner> IFunctor<LazyF<TInner>, TInner>.WrapImpl(TInner value)
             => new LazyF<TInner>(() => value);
 
-        Task IFunctor<LazyF<TInner>, TInner>.UnboxImpl(Func<TInner, Task> handler) { handler(Unbox()); return Task.CompletedTask; }
-
         IFunctor<T2, T3> IFunctor<LazyF<TInner>, TInner>.FmapImpl<T2, T3>(Func<LazyF<TInner>, T3> f)
             => new LazyF<T3>(() => f(this)) as IFunctor<T2, T3>;
     }
