@@ -54,9 +54,9 @@ namespace functors
             return this.ToList();
         }
 
-        IApplicative<TApplicativeResult, ListA<object>, TInnerResult> IApplicative<ListA<TInner>, ListA<object>, TInner>.FmapImpl<TApplicativeResult, TInnerResult>(Func<TInner, TInnerResult> f)
+        TFunctorResult IFunctor<ListA<TInner>, TInner>.FmapImpl<TFunctorResult, TInnerResult>(Func<TInner, TInnerResult> f)
         {
-            return new ListA<TInnerResult>(_wrappedImpl.Select(f)) as IApplicative<TApplicativeResult, ListA<object>, TInnerResult>;
+            return new ListA<TInnerResult>(_wrappedImpl.Select(f)) as TFunctorResult;
         }
 
         IEnumerator IEnumerable.GetEnumerator()
@@ -81,7 +81,7 @@ namespace functors
         public static ListA<T> Create<T>(params T[] collection) => new ListA<T>(collection);
 
         public static ListA<TRes> Fmap<TInner, TRes>(this ListA<TInner> app, Func<TInner, TRes> f)
-            => (ListA<TRes>)((IApplicative<ListA<TInner>, ListA<object>, TInner>)app).FmapImpl<ListA<TRes>, TRes>(f);
+            => ((IFunctor<ListA<TInner>, TInner>)app).FmapImpl<ListA<TRes>, TRes>(f);
 
         public static ListA<TOut> AppliedTo<TIn, TOut>(
             this ListA<FuncA<TIn, TOut>> app, ListA<TIn> other)

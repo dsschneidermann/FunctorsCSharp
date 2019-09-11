@@ -31,7 +31,7 @@ namespace functors
 
     // We can use Lazy<> to simplify chaining and make it a LazyTask<T>, which is nice to have
     // for other reasons too.
-    public class LazyTaskF<TInner> : Lazy<Task<TInner>>, IFunctor<LazyTaskF<TInner>, Task<TInner>>, IUnboxable
+    public class LazyTaskF<TInner> : Lazy<Task<TInner>>, IFunctor<LazyTaskF<TInner>, TInner>, IUnboxable
     {
         public LazyTaskF(Func<Task<TInner>> func) : base(func)
         {
@@ -40,42 +40,41 @@ namespace functors
         public async Task<object> Unbox() {
             var result = await Value as object;
             if (result is IUnboxable box)
+            {
                 result = await box.Unbox();
+            }
             return result;
         }
 
-        IFunctor<LazyTaskF<TInner>, Task<TInner>> IFunctor<LazyTaskF<TInner>, Task<TInner>>.WrapImpl(Task<TInner> value)
-            => new LazyTaskF<TInner>(() => value);
-
-        IFunctor<T2, T3> IFunctor<LazyTaskF<TInner>, Task<TInner>>.FmapImpl<T2, T3>(Func<LazyTaskF<TInner>, T3> f)
-            => new LazyTaskF<T3>(() => new Task<T3>(() => f(this))) as IFunctor<T2, T3>;
+        TFunctorResult IFunctor<LazyTaskF<TInner>, TInner>.FmapImpl<TFunctorResult, TInnerResult>(Func<TInner, TInnerResult> f)
+            => new LazyTaskF<TInnerResult>(async () => f(await this.Value)) as TFunctorResult;
     }
 
     public static class LazyTaskFunctorExtentions
     {
         // This handles when we have a LazyTaskF<T> (first step).
-        public static LazyTaskF<TRes> Fmap<TInner, TRes>(this LazyTaskF<TInner> functor, Func<TInner, TRes> f)
-            => new LazyTaskF<TRes>(async () => f(await functor.Value));
-
+        public static LazyTaskF<TRes> Fmap<TInner, TRes>(this LazyTaskF<TInner> app, Func<TInner, TRes> f)
+            => ((IFunctor<LazyTaskF<TInner>, TInner>)app).FmapImpl<LazyTaskF<TRes>, TRes>(f);
+        
         // This handles when we chain and have a LazyTask<Task<T>>.
         public static LazyTaskF<TRes> Fmap<TInner, TRes>(this LazyTaskF<Task<TInner>> functor, Func<TInner, TRes> f)
             => new LazyTaskF<TRes>(async () => f(await (await functor.Value)));
 
         // And while we're at it, lets also allow void returning methods.
-        public static LazyTaskF<Unit> Fmap<TInner>(this LazyTaskF<TInner> functor, Action<TInner> f)
-            => new LazyTaskF<Unit>(async () => { f(await functor.Value); return Unit.Instance; });
+        // public static LazyTaskF<Unit> Fmap<TInner>(this LazyTaskF<TInner> functor, Action<TInner> f)
+        //     => new LazyTaskF<Unit>(async () => { f(await functor.Value); return Unit.Instance; });
 
-        // And void when chaining.
-        public static LazyTaskF<Unit> Fmap<TInner>(this LazyTaskF<Task<TInner>> functor, Action<TInner> f)
-            => new LazyTaskF<Unit>(async () => { f(await (await functor.Value)); return Unit.Instance; });
+        // // And void when chaining.
+        // public static LazyTaskF<Unit> Fmap<TInner>(this LazyTaskF<Task<TInner>> functor, Action<TInner> f)
+        //     => new LazyTaskF<Unit>(async () => { f(await (await functor.Value)); return Unit.Instance; });
 
-        // For final simplicity of use, lets catch Task returns and make the non-result to Unit also.
-        public static LazyTaskF<Unit> Fmap<TInner>(this LazyTaskF<TInner> functor, Func<TInner, Task> f)
-            => new LazyTaskF<Unit>(async () => { await f(await functor.Value); return Unit.Instance; });
+        // // For final simplicity of use, lets catch Task returns and make the non-result to Unit also.
+        // public static LazyTaskF<Unit> Fmap<TInner>(this LazyTaskF<TInner> functor, Func<TInner, Task> f)
+        //     => new LazyTaskF<Unit>(async () => { await f(await functor.Value); return Unit.Instance; });
 
-        // And Task support when chaining (yep, triple).
-        public static LazyTaskF<Unit> Fmap<TInner>(this LazyTaskF<Task<TInner>> functor, Func<TInner, Task> f)
-            => new LazyTaskF<Unit>(async () => { await f(await (await functor.Value)); return Unit.Instance; });
+        // // And Task support when chaining (yep, triple).
+        // public static LazyTaskF<Unit> Fmap<TInner>(this LazyTaskF<Task<TInner>> functor, Func<TInner, Task> f)
+        //     => new LazyTaskF<Unit>(async () => { await f(await (await functor.Value)); return Unit.Instance; });
     }
 
     public static class LazyTaskF

@@ -30,7 +30,7 @@ namespace functors
             throw new NotImplementedException();
         }
 
-        IApplicative<TApplicativeResult, FuncA<object, object>, TInnerResult> IApplicative<FuncA<TIn, TOut>, FuncA<object, object>, Func<TIn, TOut>>.FmapImpl<TApplicativeResult, TInnerResult>(Func<Func<TIn, TOut>, TInnerResult> f)
+        TFunctorResult IFunctor<FuncA<TIn, TOut>, Func<TIn, TOut>>.FmapImpl<TFunctorResult, TInnerResult>(Func<Func<TIn, TOut>, TInnerResult> f)
         {
             throw new NotImplementedException();
         }

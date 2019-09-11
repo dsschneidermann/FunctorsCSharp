@@ -2,9 +2,9 @@ using System;
 
 namespace functors
 {
-    public interface IFunctor<T1, TInner> where T1 : class
+    public interface IFunctor<TFunctor, TInner> where TFunctor : class
     {
-        IFunctor<T1, TInner> WrapImpl(TInner value);
-        IFunctor<T2, T3> FmapImpl<T2, T3>(Func<T1, T3> f) where T2 : class;
+        TFunctorResult FmapImpl<TFunctorResult, TInnerResult>(Func<TInner, TInnerResult> f)
+            where TFunctorResult : class, IFunctor<TFunctorResult, TInnerResult>;
     }
 }

@@ -15,7 +15,7 @@ namespace functors
             // Example for direct use of IFunctor interface.
             var res1_functor = ((IFunctor<LazyF<int>, int>)a);
             var res1_exec = res1_functor.FmapImpl<LazyF<string>, string>(
-                x => (x.Value + 2).ToString());
+                x => (x + 2).ToString());
             var res1 = ((LazyF<string>)res1_exec);
 
             // Instead of x.Value as above, we can call Unbox on the input to the function.
@@ -47,9 +47,9 @@ namespace functors
             var res6 = LazyTaskF.Create(
                 () => new System.Net.Http.HttpClient().GetStreamAsync(requestUri))
                 .Fmap(x => WriteToFileAsync("index.html", x))
-                .Fmap(x => x.Close())
-                .Fmap(_ => System.IO.File.ReadAllTextAsync("index.html"))
-                .Fmap(x => x.ToCharArray().Count());
+                .Fmap(t => t.ContinueWith(x => x.Result.Close()))
+                .Fmap(t => t.ContinueWith(_ => System.IO.File.ReadAllTextAsync("index.html")))
+                .Fmap(t => t.ContinueWith(x => x.Result.ToCharArray().Count()));
 
             // Not impressive huh.. Looks a lot like we could just use a few "await" instead of all those Fmaps.
             // Lets try a sequence.
@@ -66,9 +66,9 @@ namespace functors
                     url => LazyTaskF.Create<System.IO.Stream>(
                     () => new System.Net.Http.HttpClient().GetStreamAsync(url))
                     .Fmap(x => WriteToFileAsync("index.html", x))
-                    .Fmap(x => x.Close())
-                    .Fmap(_ => System.IO.File.ReadAllTextAsync("index.html"))
-                    .Fmap(x => x.ToCharArray().Count())
+                    .Fmap(t => t.ContinueWith(x => x.Result.Close()))
+                    .Fmap(t => t.ContinueWith(_ => System.IO.File.ReadAllTextAsync("index.html")))
+                    .Fmap(t => t.ContinueWith(x => x.Result.ToCharArray().Count()))
                 );
 
             Console.WriteLine(JsonSerializer.PrettyPrint(JsonSerializer.Serialize(

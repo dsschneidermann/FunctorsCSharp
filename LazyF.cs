@@ -15,17 +15,14 @@ namespace functors
 
         public Task<object> Unbox() => Task.FromResult(this.Value as object);
 
-        IFunctor<LazyF<TInner>, TInner> IFunctor<LazyF<TInner>, TInner>.WrapImpl(TInner value)
-            => new LazyF<TInner>(() => value);
-
-        IFunctor<T2, T3> IFunctor<LazyF<TInner>, TInner>.FmapImpl<T2, T3>(Func<LazyF<TInner>, T3> f)
-            => new LazyF<T3>(() => f(this)) as IFunctor<T2, T3>;
+        TFunctorResult IFunctor<LazyF<TInner>, TInner>.FmapImpl<TFunctorResult, TInnerResult>(Func<TInner, TInnerResult> f)
+            => new LazyF<TInnerResult>(() => f(this.Value)) as TFunctorResult;
     }
 
     public static class LazyFunctorExtentions
     {
-        public static LazyF<TRes> Fmap<TInner, TRes>(this LazyF<TInner> functor, Func<TInner, TRes> f)
-            => new LazyF<TRes>(() => f(functor.Value));
+        public static LazyF<TRes> Fmap<TInner, TRes>(this LazyF<TInner> app, Func<TInner, TRes> f)
+            => ((IFunctor<LazyF<TInner>, TInner>)app).FmapImpl<LazyF<TRes>, TRes>(f);
     }
 
     public static class LazyF
