@@ -31,27 +31,18 @@ namespace functors
 
     // We can use Lazy<> to simplify chaining and make it a LazyTask<T>, which is nice to have
     // for other reasons too.
-    public class LazyTaskF<TInner> : IFunctor<LazyTaskF<TInner>, Task<TInner>>
+    public class LazyTaskF<TInner> : Lazy<Task<TInner>>, IFunctor<LazyTaskF<TInner>, Task<TInner>>, IUnboxable
     {
-        private readonly Lazy<Task<TInner>> _wrappedImpl;
-
-        public LazyTaskF()
+        public LazyTaskF(Func<Task<TInner>> func) : base(func)
         {
         }
 
-        public LazyTaskF(Func<Task<TInner>> wrappedImpl)
-        {
-            // Take a Func that is async-await capable and make it into a Lazy.
-            _wrappedImpl = new Lazy<Task<TInner>>(wrappedImpl);
+        public async Task<object> Unbox() {
+            var result = await Value as object;
+            if (result is IUnboxable box)
+                result = await box.Unbox();
+            return result;
         }
-
-        public LazyTaskF(Lazy<Task<TInner>> wrappedImpl)
-        {
-            // Or just take the Lazy that is given.
-            _wrappedImpl = wrappedImpl;
-        }
-
-        public Task<TInner> Unbox() => _wrappedImpl.Value;
 
         IFunctor<LazyTaskF<TInner>, Task<TInner>> IFunctor<LazyTaskF<TInner>, Task<TInner>>.WrapImpl(Task<TInner> value)
             => new LazyTaskF<TInner>(() => value);
@@ -64,51 +55,35 @@ namespace functors
     {
         // This handles when we have a LazyTaskF<T> (first step).
         public static LazyTaskF<TRes> Fmap<TInner, TRes>(this LazyTaskF<TInner> functor, Func<TInner, TRes> f)
-            => new LazyTaskF<TRes>(async () => f(await functor.NullCheck("functor").Unbox().NullCheck("unboxed")));
+            => new LazyTaskF<TRes>(async () => f(await functor.Value));
 
         // This handles when we chain and have a LazyTask<Task<T>>.
         public static LazyTaskF<TRes> Fmap<TInner, TRes>(this LazyTaskF<Task<TInner>> functor, Func<TInner, TRes> f)
-            => new LazyTaskF<TRes>(async () => f(await (await functor.NullCheck("functor").Unbox().NullCheck("unboxed"))));
+            => new LazyTaskF<TRes>(async () => f(await (await functor.Value)));
 
         // And while we're at it, lets also allow void returning methods.
         public static LazyTaskF<Unit> Fmap<TInner>(this LazyTaskF<TInner> functor, Action<TInner> f)
-            => new LazyTaskF<Unit>(async () => { f(await functor.NullCheck("functor").Unbox().NullCheck("unboxed")); return Unit.Instance; });
+            => new LazyTaskF<Unit>(async () => { f(await functor.Value); return Unit.Instance; });
 
         // And void when chaining.
         public static LazyTaskF<Unit> Fmap<TInner>(this LazyTaskF<Task<TInner>> functor, Action<TInner> f)
-            => new LazyTaskF<Unit>(async () => { f(await (await functor.NullCheck("functor").Unbox().NullCheck("unboxed"))); return Unit.Instance; });
+            => new LazyTaskF<Unit>(async () => { f(await (await functor.Value)); return Unit.Instance; });
 
         // For final simplicity of use, lets catch Task returns and make the non-result to Unit also.
         public static LazyTaskF<Unit> Fmap<TInner>(this LazyTaskF<TInner> functor, Func<TInner, Task> f)
-            => new LazyTaskF<Unit>(async () => { await f(await functor.NullCheck("functor").Unbox().NullCheck("unboxed")); return Unit.Instance; });
+            => new LazyTaskF<Unit>(async () => { await f(await functor.Value); return Unit.Instance; });
 
         // And Task support when chaining (yep, triple).
         public static LazyTaskF<Unit> Fmap<TInner>(this LazyTaskF<Task<TInner>> functor, Func<TInner, Task> f)
-            => new LazyTaskF<Unit>(async () => { await f(await (await functor.NullCheck("functor").Unbox().NullCheck("unboxed"))); return Unit.Instance; });
-
-        public static T NullCheck<T>(this T isNull, string name, [CallerMemberName] string member = null, [CallerFilePath] string file = null, [CallerLineNumber] int? line = null)
-        {
-            if (isNull == null)
-            {
-                Console.WriteLine($"NullCheck failed in {member}: '{name}' is null in {file}:line {line}");
-            }
-            return isNull;
-        }
-    }
-
-    public class Unit
-    {
-        public static Unit Instance = new Unit();
+            => new LazyTaskF<Unit>(async () => { await f(await (await functor.Value)); return Unit.Instance; });
     }
 
     public static class LazyTaskF
     {
         // Lets create a few helpers so we don't need to write out the initial type
         public static LazyTaskF<T> Create<T>(Func<Task<T>> initial) => new LazyTaskF<T>(initial);
-        public static LazyTaskF<T> Create<T>(Lazy<Task<T>> initial) => new LazyTaskF<T>(initial);
 
         // Lets also support something that is not a task initially
         public static LazyTaskF<T> Create<T>(Func<T> initial) => new LazyTaskF<T>(() => Task.FromResult(initial()));
-        public static LazyTaskF<T> Create<T>(Lazy<T> initial) => new LazyTaskF<T>(() => Task.FromResult(initial.Value));
     }
 }

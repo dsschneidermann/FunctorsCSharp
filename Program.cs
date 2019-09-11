@@ -1,5 +1,4 @@
-﻿using System;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 
 namespace functors
 {
@@ -8,6 +7,7 @@ namespace functors
         static async Task Main(string[] args)
         {
             await Functors.Run();
+            //await Applicatives.Run();
         }
     }
 }
